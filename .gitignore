@@ -64,3 +64,6 @@ out.png
 **/target/
 **/*.rs.bk
 **/*.profraw
+
+# GEBETA: local-only planning docs; never committed
+/docs/gebeta/
