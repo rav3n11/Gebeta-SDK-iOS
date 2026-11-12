@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Gebeta rules: correct author identity, and no secrets in staged changes.
+set -euo pipefail
+
+expected_email="$(git config --get gebeta.authorEmail || true)"
+author_email="$(git var GIT_AUTHOR_IDENT | sed -E 's/.*<(.*)>.*/\1/')"
+committer_email="$(git var GIT_COMMITTER_IDENT | sed -E 's/.*<(.*)>.*/\1/')"
+
+if [[ -z "$expected_email" ]]; then
+  echo "pre-commit: set the allowed author first: git config gebeta.authorEmail <email>" >&2
+  exit 1
+fi
+for e in "$author_email" "$committer_email"; do
+  if [[ "$e" != "$expected_email" ]]; then
+    echo "pre-commit: rejected — author/committer is <$e>, expected <$expected_email>." >&2
+    exit 1
+  fi
+done
+
+if command -v gitleaks >/dev/null 2>&1; then
+  root="$(git rev-parse --show-toplevel)"
+  gitleaks git --pre-commit --staged --config "$root/.gitleaks.toml" --redact --no-banner "$root"
+else
+  echo "pre-commit: gitleaks not installed — refusing to commit without a secret scan." >&2
+  exit 1
+fi

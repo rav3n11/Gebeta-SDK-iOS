@@ -1,0 +1,5 @@
+.build/
+.swiftpm/
+Frameworks/
+*.xcframework
+*.xcframework.zip

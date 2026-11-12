@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Gebeta rule: Beck is the sole author. No co-author or tool attribution trailers.
+set -euo pipefail
+msg_file="$1"
+
+if grep -qiE '^(co-authored-by|claude-session|generated with)' "$msg_file" \
+   || grep -qiE 'anthropic\.com|claude\.ai/code|claude\.com/claude-code' "$msg_file"; then
+  echo "commit-msg: rejected — remove co-author/attribution lines. Beck is the sole author." >&2
+  exit 1
+fi
