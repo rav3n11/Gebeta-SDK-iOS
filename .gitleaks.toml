@@ -1,0 +1,16 @@
+# Default gitleaks rules plus a narrow allowlist for known, already-public
+# findings in MapLibre upstream files (demo map keys in test styles, sqlite
+# false positives). Only exact upstream paths are listed — never gebeta/ code.
+# If an upstream sync adds new findings, review each one before extending this.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Reviewed upstream MapLibre findings (ios-v7.0.0)"
+paths = [
+  '''^platform/android/MapLibreAndroidTestApp/src/main/assets/(outdoor|pastel|satellite-hybrid)\.json$''',
+  '''^platform/node/test/mockfs\.js$''',
+  '''^src/mln/util/mapbox\.cpp$''',
+  '''^test/fixtures/resources/style_vector\.json$''',
+  '''^vendor/sqlite/src/sqlite3\.c$''',
+]

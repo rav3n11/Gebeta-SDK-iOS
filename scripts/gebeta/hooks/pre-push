@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Gebeta rules for every push:
+#  1. Beck must approve it: GEBETA_PUSH_APPROVED must equal the exact SHA being pushed.
+#  2. Every outgoing commit is authored and committed by gebeta.authorEmail.
+#  3. No co-author / attribution trailers in outgoing commits.
+#  4. gitleaks finds no secrets in outgoing commits.
+set -euo pipefail
+
+remote_name="$1"
+root="$(git rev-parse --show-toplevel)"
+expected_email="$(git config --get gebeta.authorEmail || true)"
+[[ -n "$expected_email" ]] || { echo "pre-push: gebeta.authorEmail not set" >&2; exit 1; }
+command -v gitleaks >/dev/null || { echo "pre-push: gitleaks not installed" >&2; exit 1; }
+
+zero=0000000000000000000000000000000000000000
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [[ "$local_sha" == "$zero" ]] && continue
+
+  if [[ "${GEBETA_PUSH_APPROVED:-}" != "$local_sha" ]]; then
+    echo "pre-push: $local_ref ($local_sha) has not been approved by Beck." >&2
+    echo "          After review: GEBETA_PUSH_APPROVED=$local_sha git push ..." >&2
+    exit 1
+  fi
+
+  # Outgoing commits = not already on any branch of this remote.
+  commits="$(git rev-list "$local_sha" --not --remotes="$remote_name")"
+  [[ -z "$commits" ]] && continue
+
+  for c in $commits; do
+    a="$(git show -s --format=%ae "$c")"; m="$(git show -s --format=%ce "$c")"
+    if [[ "$a" != "$expected_email" || "$m" != "$expected_email" ]]; then
+      echo "pre-push: $c author/committer <$a>/<$m> is not <$expected_email>" >&2; exit 1
+    fi
+    if git show -s --format=%B "$c" | grep -qiE '^(co-authored-by|claude-session|generated with)|anthropic\.com|claude\.ai/code|claude\.com/claude-code'; then
+      echo "pre-push: $c contains a co-author/attribution trailer" >&2; exit 1
+    fi
+  done
+
+  log_opts="$local_sha --not --remotes=$remote_name"
+  gitleaks git --config "$root/.gitleaks.toml" --log-opts="$log_opts" --redact --no-banner "$root"
+done
+echo "pre-push: approval, authorship and secret checks passed."
